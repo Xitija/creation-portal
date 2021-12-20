@@ -6,13 +6,12 @@ import { Component, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { ISessionContext, InitialState, IPagination} from '../../../sourcing/interfaces';
 import { CollectionHierarchyService } from '../../../sourcing/services/collection-hierarchy/collection-hierarchy.service';
 import * as _ from 'lodash-es';
-import { tap, first, catchError, takeUntil } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { tap, first, catchError, takeUntil, take } from 'rxjs/operators';
+import { Subject, forkJoin, of } from 'rxjs';
 import * as moment from 'moment';
 import { ProgramStageService } from '../../services/program-stage/program-stage.service';
 import { ChapterListComponent } from '../../../sourcing/components/chapter-list/chapter-list.component';
 import { DatePipe } from '@angular/common';
-import { forkJoin, of } from 'rxjs';
 import {ProgramTelemetryService} from '../../services';
 import { SourcingService } from '../../../sourcing/services';
 import { HelperService } from '../../../sourcing/services/helper.service';
@@ -446,12 +445,12 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
 
   getProgramCollection (preferencefilters?) {
     if (!this.programDetails.target_type || _.includes(['collections', 'questionSets'], this.programDetails.target_type)) {
-      return this.collectionHierarchyService.getCollectionWithProgramId(this.programId, this.programDetails.target_collection_category, preferencefilters).pipe(
+      return this.collectionHierarchyService.getCollectionWithProgramId(this.programId, this.programDetails.target_collection_category, preferencefilters, true, this.programDetails.target_type).pipe(
         tap((response: any) => {
           if (response && response.result) {
             let objectType = 'content';
             if(this.programDetails.target_type === 'questionSets') objectType = 'QuestionSet';
-            this.programCollections = response.result[objectType] || [];            
+            this.programCollections = response.result[objectType] || [];
           }
         }),
         catchError(err => {
@@ -470,7 +469,7 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
           return of(false);
         })
       );
-    } 
+    }
   }
 
   getcontentAggregationData() {
@@ -578,9 +577,12 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
   }
 
   getNominationSampleCounts(nomination) {
-    return (nomination.organisation_id) ?
+    const ret =  (nomination.organisation_id) ?
     _.get(this.nominationSampleCounts, nomination.organisation_id) || 0 :
     _.get(this.nominationSampleCounts, nomination.user_id) || 0;
+      var index = _.findIndex(this.nominations, {id: nomination.id});
+      this.nominations[index].samples = ret;
+      return ret;
   }
 
   getOverAllCounts(dashboardData) {
@@ -618,8 +620,8 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
       this.sessionContext.framework = _.isArray(_.get(this.programDetails, 'config.framework')) ? _.first(_.get(this.programDetails, 'config.framework')) : _.get(this.programDetails, 'config.framework');
       this.showBulkApprovalButton = this.showBulkApproval();
       this.setTargetCollectionValue();
-      this.frameworkService.initialize(this.sessionContext.framework);   
-      forkJoin(this.frameworkService.readFramworkCategories(this.sessionContext.framework), this.getAggregatedNominationsCount(), 
+      this.frameworkService.initialize(this.sessionContext.framework);
+      forkJoin(this.frameworkService.readFramworkCategories(this.sessionContext.framework), this.getAggregatedNominationsCount(),
               this.getcontentAggregationData(), this.getOriginForApprovedContents()).subscribe(
         (response) => {
             const frameworkRes = _.first(response);
@@ -733,7 +735,7 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
   }
 
   getCollectionsAddedToProgram() {
-    let collectionsAddedToProgram = _.filter(this.programCollections, 
+    let collectionsAddedToProgram = _.filter(this.programCollections,
       (collection) => _.indexOf(this.programDetails.collection_ids, collection.identifier) !== -1
     )
     return collectionsAddedToProgram || [];
@@ -755,13 +757,13 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
             if (prefres.result !== null || prefres.result !== undefined) {
               this.userPreferences = prefres.result;
               preffilter = _.get(this.userPreferences, 'sourcing_preference');
-            }                     
+            }
             this.getProgramCollection(preffilter).subscribe((res) => {
               this.showTextbookLoader  =  false;
-              if (_.get(this.programDetails, 'target_type') === 'questionSets') {              
+              if (_.get(this.programDetails, 'target_type') === 'questionSets') {
                 this.programCollections = this.getCollectionsAddedToProgram();
               }
-              this.logTelemetryImpressionEvent(this.programCollections, 'identifier', 'collection');              
+              this.logTelemetryImpressionEvent(this.programCollections, 'identifier', 'collection');
             }, (err) => { // TODO: navigate to program list page
               this.showTextbookLoader  =  false;
               this.logTelemetryImpressionEvent();
@@ -938,13 +940,20 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
     if (!_.isEmpty(this.state.stages)) {
       this.currentStage = _.last(this.state.stages).stage;
     }
-    if (this.currentStage !== 'programNominations' && this.currentStage !== 'chapterListComponent') {
-      this.contentHelperService.dynamicInputs$.subscribe((res)=> {
-        this.dynamicInputs = res;
-      });
-      this.contentHelperService.currentOpenedComponent$.subscribe((res)=> {
-        this.component = res;
-      });
+    if (this.sessionContext && this.programDetails && this.currentStage === 'programNominations') {
+      this.showTextbookLoader = true;
+      setTimeout(() => {
+        const req = {
+          url: `program/v1/read/${this.programId}`
+        };
+        this.programsService.get(req).subscribe((programDetails) => {
+          this.programDetails = _.get(programDetails, 'result');
+          forkJoin(this.getAggregatedNominationsCount(), this.getcontentAggregationData(), this.getOriginForApprovedContents()).subscribe(
+          (response) => {
+              this.checkActiveTab();
+          });
+        });
+      }, 3000);
     }
   }
 
@@ -968,7 +977,11 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
 
   openContent(content) {
       this.contentHelperService.initialize(this.programDetails, this.sessionContext);
-      this.contentHelperService.openContent(content);
+      this.contentHelperService.openContent(content).then((response) => {
+        this.dynamicInputs = response['dynamicInputs'];
+        this.component = response['currentComponent'];
+        this.programStageService.addStage(response['currentComponentName']);
+      }).catch((error) => this.toasterService.error('Errror in opening the content componnet'));
   }
   getOriginForApprovedContents() {
     if (!_.isEmpty(this.programDetails.acceptedcontents)) {
@@ -1022,27 +1035,6 @@ export class ProgramNominationsComponent implements OnInit, AfterViewInit, OnDes
     this.programStageService.addStage('chapterListComponent');
     this.setFrameworkCategories(collection);
   }
-/*
-  getSharedContextObjectProperty(property) {
-    if (property === 'channel') {
-       return _.get(this.programDetails, 'config.scope.channel');
-    } else if ( property === 'topic' ) {
-      return null;
-    } else {
-      const collectionComComponent = _.find(this.programDetails.config.components, { 'id': 'ng.sunbird.collection' });
-      const filters =  collectionComComponent.config.filters;
-      const explicitProperty =  _.find(filters.explicit, {'code': property});
-      const implicitProperty =  _.find(filters.implicit, {'code': property});
-      return (implicitProperty) ? implicitProperty.range || implicitProperty.defaultValue :
-       explicitProperty.range || explicitProperty.defaultValue;
-    }
-  }
-
-  checkArrayCondition(param) {
-    // tslint:disable-next-line:max-line-length
-    this.sharedContext[param] = _.isArray(this.sharedContext[param]) ? this.sharedContext[param] : _.split(this.sharedContext[param], ',');
-  }*/
-
   public isEmptyObject(obj) {
     return !!(_.isEmpty(obj));
   }

@@ -151,6 +151,11 @@ function getLocals(req) {
   locals.dockSmsUrl = envHelper.DOCK_SMS_URL;
   locals.dockDefaultFileSize = envHelper.DOCK_DEFAULT_FILE_SIZE;
   locals.dockDefaultVideoSize = envHelper.DOCK_DEFAULT_VIDEO_SIZE;
+  locals.sunbirdQuestionSetChildrenLimit = envHelper.SUNBIRD_QUESTIONSET_CHILDREN_LIMIT;
+  locals.sunbirdCollectionChildrenLimit =  envHelper.SUNBIRD_COLLECTION_CHILDREN_LIMIT;
+  locals.sunbirdTranscriptSupportedLanguages = envHelper.SUNBIRD_TRANSCRIPT_SUPPORTED_LANGUAGES;
+  locals.sunbirdTranscriptFileFormat =  envHelper.SUNBIRD_TRANSCRIPT_FILE_FORMAT;
+  locals.sunbirdTranscriptRequired = envHelper.SUNBIRD_TRANSCRIPT_REQUIRED;
   return locals
 }
 

@@ -6,8 +6,8 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { UUID } from 'angular2-uuid';
 import { ConfigService, ResourceService, ToasterService, NavigationHelperService, PaginationService } from '@sunbird/shared';
 import * as _ from 'lodash-es';
-import { map, catchError, tap } from 'rxjs/operators';
-import { throwError, of, forkJoin } from 'rxjs';
+import { map, catchError, tap, take } from 'rxjs/operators';
+import { throwError, of, forkJoin, Subject } from 'rxjs';
 import { CollectionHierarchyService } from '../../../sourcing/services/collection-hierarchy/collection-hierarchy.service';
 import { ChapterListComponent } from '../../../sourcing/components';
 import { ICollectionComponentInput, IDashboardComponentInput,
@@ -108,7 +108,7 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
   public contentCount = 0;
   public showConfirmationModal = false;
   public prefernceFormOptions = {};
-  
+
   constructor(public frameworkService: FrameworkService, public resourceService: ResourceService,
     public configService: ConfigService, public activatedRoute: ActivatedRoute, private router: Router,
     public userService: UserService,
@@ -189,18 +189,9 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
       this.roleNames = _.map(this.rolesWithNone, 'name');
       this.sessionContext.programId = this.programDetails.program_id;
       this.sessionContext.framework = _.isArray(_.get(this.programDetails, 'config.framework')) ? _.first(_.get(this.programDetails, 'config.framework')) : _.get(this.programDetails, 'config.framework');
-      this.frameworkService.initialize(this.sessionContext.framework);
-      this.frameworkService.readFramworkCategories(this.sessionContext.framework).subscribe((frameworkData) => {
-        if (frameworkData) {
-          this.sessionContext.frameworkData = frameworkData.categories;
-          this.sessionContext.topicList = _.get(_.find(this.sessionContext.frameworkData, { code: 'topic' }), 'terms'); 
-        }
-        this.getNominationStatus();
-        this.setTargetCollectionValue();
-        this.getCollectionCategoryDefinition();
-      }, error => {
-        this.raiseError(error, 'Fetching framework details failed')
-      });
+      this.getNominationStatus();
+      this.setTargetCollectionValue();
+      this.getCollectionCategoryDefinition();
     }, error => {
       // TODO: navigate to program list page
       this.raiseError(error, this.resourceService.messages.emsg.project.m0001)
@@ -213,12 +204,11 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
       this.targetCollections = this.programsService.setTargetCollectionName(this.programDetails, 'plural');
     }
   }
- 
 
   isSourcingOrgReviewer () {
     return this.userService.isSourcingOrgReviewer(this.programDetails);
   }
-  
+
   getNominationStatus() {
     const filters = {
       program_id: this.activatedRoute.snapshot.params.programId
@@ -237,7 +227,6 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
         this.selectedContentTypes = this.programsService.getNominatedTargetPrimaryCategories(this.programDetails, this.nominationDetails);
         this.currentNominationStatus = _.get(this.nominationDetails, 'status');
         this.selectedCollectionIds = _.get(this.nominationDetails, 'collection_ids');
-        //this.nominated = !!(this.nominationDetails.status !== 'Initiated');
         this.sessionContext.nominationDetails = this.nominationDetails;
       }
       this.setProgramRole();
@@ -247,14 +236,23 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
       this.sessionContext = _.assign(this.sessionContext, this.sessionContext['selectedSharedProperties']);
       this.loaders.showProgramHeaderLoader = false;
       this.contentCount = 0;
-      if (!this.programDetails.target_type || this.programDetails.target_type === 'collections' || this.programDetails.target_type === 'questionSets') {
-        this.getProgramCollections();
-      } else if (this.programDetails.target_type == 'searchCriteria') {
-        forkJoin(this.getUserProgramPreferences(),this.getOriginForApprovedContents(), this.getProgramContentAggregation()).subscribe((res) => {
-          const preferences = _.get(_.first(res), 'result');
-          this.getProgramContents(_.get(preferences, 'contributor_preference'));
-        })
-      }
+      this.frameworkService.initialize(this.sessionContext.framework);
+      this.frameworkService.readFramworkCategories(this.sessionContext.framework).subscribe((frameworkData) => {
+        if (frameworkData) {
+          this.sessionContext.frameworkData = frameworkData.categories;
+          this.sessionContext.topicList = _.get(_.find(this.sessionContext.frameworkData, { code: 'topic' }), 'terms');
+        }
+        if (!this.programDetails.target_type || this.programDetails.target_type === 'collections' || this.programDetails.target_type === 'questionSets') {
+          this.getProgramCollections();
+        } else if (this.programDetails.target_type == 'searchCriteria') {
+          forkJoin(this.getUserProgramPreferences(),this.getOriginForApprovedContents(), this.getProgramContentAggregation()).subscribe((res) => {
+            const preferences = _.get(_.first(res), 'result');
+            this.getProgramContents(_.get(preferences, 'contributor_preference'));
+          })
+        }
+      }, error => {
+        this.raiseError(error, 'Fetching framework details failed')
+      });
     }, error => {
       const errInfo = {
         errorMsg: 'Failed fetching current nomination status',
@@ -265,7 +263,7 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
       this.sourcingService.apiErrorHandling(error, errInfo);
     });
   }
- 
+
   setProgramRole() {
     //const nonInitiatedStatus = ['Pending', 'Approved', 'Rejected'];
     //if (this.currentNominationStatus && _.includes(nonInitiatedStatus, this.currentNominationStatus)) {
@@ -283,7 +281,7 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
         const programType = _.get(this.programDetails, 'type');
         const isContributingOrgContributor = this.userService.isContributingOrgContributor(this.sessionContext.nominationDetails);
         const isDefaultContributingOrg = this.userService.isDefaultContributingOrg(this.programDetails);;
-        if (defaultContributeOrgReview === false && (programType === 'restricted' || 
+        if (defaultContributeOrgReview === false && (programType === 'restricted' ||
         (isContributingOrgContributor && isDefaultContributingOrg && _.get(this.sessionContext, 'currentRoles').includes('CONTRIBUTOR') && this.currentNominationStatus === 'Approved'))) {
           this.sessionContext.currentOrgRole = 'individual';
         }
@@ -668,12 +666,13 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
     let sampleValue, organisation_id, individualUserId, onlyCount;
     if (_.includes(['Initiated', 'Pending'], this.currentNominationStatus)) {
         sampleValue = true;
-      if (this.userService.isUserBelongsToOrg()) {
-        organisation_id = this.userService.getUserOrgId();
-      } else {
-        individualUserId = this.userService.userid;
-      }
     }
+    if (this.userService.isUserBelongsToOrg()) {
+      organisation_id = this.userService.getUserOrgId();
+    } else {
+      individualUserId = this.userService.userid;
+    }
+
     this.collectionHierarchyService.preferencefilters = preferences;
     this.collectionHierarchyService.getContentAggregation(this.activatedRoute.snapshot.params.programId, sampleValue, organisation_id, individualUserId, onlyCount, true).subscribe(
       (response) => {
@@ -730,13 +729,13 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
 
   showTexbooklist(contributorTextbooks) {
     const notInitiatedNoms = ['Pending', 'Approved', 'Rejected'];
-    // tslint:disable-next-line:max-line-length    
+    // tslint:disable-next-line:max-line-length
     const isTargetTypeQuestionSet = this.programDetails?.target_type === 'questionSets' ? true : false;
 
     contributorTextbooks = (!_.isUndefined(this.currentNominationStatus) && _.includes(notInitiatedNoms, this.currentNominationStatus)) ? _.filter(contributorTextbooks, (collection) => {
 
       return _.includes(
-        isTargetTypeQuestionSet ? this.programDetails.collection_ids : 
+        isTargetTypeQuestionSet ? this.programDetails.collection_ids :
         this.nominationDetails.collection_ids, collection.identifier);
     }) : contributorTextbooks;
 
@@ -854,7 +853,9 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
 
   openContent(content) {
     this.contentHelperService.initialize(this.programDetails, this.sessionContext);
-    this.contentHelperService.openContent(content);
+    this.contentHelperService.openContent(content).then((response) => {
+      this.setContentComponent(response);
+    }).catch((error) => this.raiseError(error, 'Errror in opening the content componnet'));
   }
 
   setFrameworkCategories(collection) {
@@ -920,7 +921,7 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   showResourceTemplate() {
-    if (!_.get(this.nominationDetails, 'id')) {
+    if (!_.get(this.nominationDetails, 'id') || this.currentNominationStatus === 'Initiated') {
       this.createNomination('Initiated');
     } else {
       this.resourceTemplateInputData();
@@ -928,7 +929,7 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
   uploadSampleContent(collection) {
-    if (!_.get(this.nominationDetails, 'id')) {
+    if (!_.get(this.nominationDetails, 'id') || this.currentNominationStatus === 'Initiated') {
       this.createNomination('Initiated', collection);
     } else {
       this.openCollection(collection);
@@ -1008,7 +1009,15 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
   handleTemplateSelection(event) {
     this.showResourceTemplatePopup = false;
     this.contentHelperService.initialize(this.programDetails, this.sessionContext);
-    this.contentHelperService.handleContentCreation(event);
+    this.contentHelperService.handleContentCreation(event).then((response) => {
+      this.setContentComponent(response);
+    }).catch((error) => this.raiseError(error, 'Errror in opening the content componnet'));
+  }
+
+  setContentComponent(response) {
+    this.dynamicInputs = response.dynamicInputs;
+    this.component = response.currentComponent;
+    this.programStageService.addStage(response.currentComponentName);
   }
 
   resourceTemplateInputData() {
@@ -1041,6 +1050,9 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
     this.visibility['showContentLevelOpen'] = (!this.currentNominationStatus || _.includes(['Initiated', 'Pending', 'Approved'], this.currentNominationStatus)) && isProgramForNoCollections;
     this.visibility['showProgramLevelBulkUpload']= isProgramForNoCollections && canAcceptContribution && !_.includes(['Pending', 'Initiated'], this.currentNominationStatus) && _.get(this.sessionContext, 'currentRoles', []).includes('CONTRIBUTOR');
     this.visibility['showFilter'] = (isProgramForCollections && (this.isContributingOrgAdmin || this.sessionContext?.currentRoles?.includes('REVIEWER')) || (isProgramForNoCollections && this.currentNominationStatus === 'Approved'));
+    // tslint:disable-next-line:max-line-length
+    this.visibility['showCollectionLevelSamples'] = (this.isContributingOrgAdmin || !this.userService.isUserBelongsToOrg()) && isProgramForCollections && _.includes(['Initiated', 'Rejected'], this.currentNominationStatus);
+    this.visibility['showCollectionLevelContentStatus'] = this.isContributingOrgAdmin && isProgramForCollections && _.includes(['Approved', 'Pending'], this.currentNominationStatus);
   }
 
   getCollectionCategoryDefinition() {
@@ -1121,6 +1133,9 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
         (response) => {
           if (response && response.result && response.result.node_id) {
             this.toasterService.success(this.resourceService.messages.smsg.m0064);
+            const cindex = this.contributorTextbooks.findIndex(x => x.identifier === this.contentId);
+            this.contributorTextbooks.splice(cindex, 1);
+            this.contentCount = this.contentCount-1;
           } else {
             this.toasterService.error(this.resourceService.messages.fmsg.m00103);
           }
@@ -1153,18 +1168,12 @@ export class ProgramComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!_.isEmpty(this.state.stages)) {
       this.currentStage = _.last(this.state.stages).stage;
     }
-    if (this.currentStage !== 'programComponent') {
-      this.contentHelperService.dynamicInputs$.subscribe((res)=> {
-        this.dynamicInputs = res;
-      });
-      this.contentHelperService.currentOpenedComponent$.subscribe((res)=> {
-        this.component = res;
-      });
-    }
     if (this.sessionContext && this.programDetails && this.currentStage === 'programComponent') {
       this.nominationIsInProcess = false;
       this.loaders.showCollectionListLoader = true;
-      this.getNominationStatus();
+      setTimeout(() => {
+        this.getNominationStatus();
+      }, 3000);
     }
   }
   tabChangeHandler(e) {

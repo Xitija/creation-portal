@@ -46,7 +46,6 @@ export class ResourceTemplateComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.templateList = _.get(this.resourceTemplateComponentInput, 'templateList');
-    console.log(this.templateList);
     this.programContext = _.get(this.resourceTemplateComponentInput, 'programContext');
     this.sessionContext = _.get(this.resourceTemplateComponentInput, 'sessionContext');
     this.unitIdentifier  = _.get(this.resourceTemplateComponentInput, 'unitIdentifier');
@@ -58,7 +57,6 @@ export class ResourceTemplateComponent implements OnInit, OnDestroy {
      // tslint:disable-next-line:max-line-length
      this.telemetryInteractObject = this.programTelemetryService.getTelemetryInteractObject(this.unitIdentifier, 'Content', '1.0', {l1: this.sessionContext.collection});
   }
-
 
   handleSubmit() {
     this.programsService.getCategoryDefinition(this.templateSelected.name, this.programContext.rootorg_id, this.templateSelected.targetObjectType).subscribe((res) => {
@@ -99,9 +97,9 @@ export class ResourceTemplateComponent implements OnInit, OnDestroy {
         } else {
           this.selectedtemplateDetails["modeOfCreation"] = modeOfCreation[0];
           if (this.selectedtemplateDetails["modeOfCreation"] === 'question') {
-            this.showModeofCreationModal = false;        
+            this.showModeofCreationModal = false;
             this.showQuestionTypeModal = true;
-            if(!_.isUndefined(this.selectedtemplateDetails["interactionTypes"])) {
+            if(this.selectedtemplateDetails["interactionTypes"][0] === "choice") {
               this.showQuestionTypeModal = false;
               this.submit();
             }
@@ -143,11 +141,11 @@ export class ResourceTemplateComponent implements OnInit, OnDestroy {
         break;
       case 'question':
         this.selectedtemplateDetails.onClick = 'questionSetComponent';
-        const temp = _.find(this.selectedtemplateDetails.editors, {'type': 'question'});    
+        const temp = _.find(this.selectedtemplateDetails.editors, {'type': 'question'});
         if(temp.mimetype === 'application/vnd.sunbird.question') {
-          this.selectedtemplateDetails.onClick = 'questionSetEditorComponent';          
-        }    
-        this.selectedtemplateDetails.mimeType = [temp.mimetype];       
+          this.selectedtemplateDetails.onClick = 'questionSetEditorComponent';
+        }
+        this.selectedtemplateDetails.mimeType = [temp.mimetype];
         break;
       case 'ecml':
         this.selectedtemplateDetails.onClick = 'editorComponent';

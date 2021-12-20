@@ -9,7 +9,7 @@ import { InitialState, ISessionContext, IUserParticipantDetails } from '../../in
 import { ProgramStageService } from '../../services/';
 import { ChapterListComponent } from '../../../sourcing/components/chapter-list/chapter-list.component';
 import { CollectionHierarchyService } from '../../../sourcing/services/collection-hierarchy/collection-hierarchy.service';
-import { tap, filter, first, map, catchError } from 'rxjs/operators';
+import { tap, filter, first, map, catchError, take } from 'rxjs/operators';
 import { NgForm } from '@angular/forms';
 import * as moment from 'moment';
 import { SourcingService } from '../../../sourcing/services';
@@ -71,10 +71,10 @@ export class ListContributorTextbooksComponent implements OnInit, AfterViewInit,
   public collectionsCnt = 0;
   constructor(private programsService: ProgramsService, public resourceService: ResourceService,
     private userService: UserService, private frameworkService: FrameworkService,
-    public config: ConfigService, private activatedRoute: ActivatedRoute, private router: Router, 
+    public config: ConfigService, private activatedRoute: ActivatedRoute, private router: Router,
     public programStageService: ProgramStageService, private navigationHelperService: NavigationHelperService,
-    public toasterService: ToasterService, private collectionHierarchyService: CollectionHierarchyService, 
-    private contentHelperService: ContentHelperService, private notificationService: NotificationService, 
+    public toasterService: ToasterService, private collectionHierarchyService: CollectionHierarchyService,
+    private contentHelperService: ContentHelperService, private notificationService: NotificationService,
     private sourcingService: SourcingService, private helperService: HelperService) { }
 
   ngOnInit() {
@@ -105,7 +105,7 @@ export class ListContributorTextbooksComponent implements OnInit, AfterViewInit,
       this.sessionContext.nominationDetails = this.selectedNominationDetails && this.selectedNominationDetails.nominationData;
       this.setActiveDate();
       this.setProgramRole();
-  
+
       if (!this.programContext.target_type || this.programContext.target_type === 'collections') {
         this.getProgramTextbooks();
       } else if (this.programDetails.target_type == 'searchCriteria') {
@@ -209,7 +209,7 @@ export class ListContributorTextbooksComponent implements OnInit, AfterViewInit,
       return of([]);
     }
   }
- 
+
   getProgramContents() {
     let sampleValue, organisation_id, individualUserId, onlyCount, contentStatusCounts;
     const currentNominationStatus = this.contributor.nominationData.status;
@@ -365,7 +365,11 @@ export class ListContributorTextbooksComponent implements OnInit, AfterViewInit,
   }
   openContent(content) {
     this.contentHelperService.initialize(this.programContext, this.sessionContext);
-    this.contentHelperService.openContent(content);
+    this.contentHelperService.openContent(content).then((response) => {
+      this.dynamicInputs = response['dynamicInputs'];
+      this.component = response['currentComponent'];
+      this.programStageService.addStage(response['currentComponentName']);
+    }).catch((error) => this.toasterService.error('Errror in opening the content componnet'));
   }
 
   setProgramRole() {
@@ -469,13 +473,14 @@ export class ListContributorTextbooksComponent implements OnInit, AfterViewInit,
     if (!_.isEmpty(this.state.stages)) {
       this.currentStage = _.last(this.state.stages).stage;
     }
-    if (this.currentStage !== 'listContributorTextbook') {
-      this.contentHelperService.dynamicInputs$.subscribe((res) => {
-        this.dynamicInputs = res;
-      });
-      this.contentHelperService.currentOpenedComponent$.subscribe((res) => {
-        this.component = res;
-      });
+
+    if (this.programDetails && this.programDetails.target_type == 'searchCriteria' && this.currentStage === 'listContributorTextbook') {
+      this.showLoader = true;
+      setTimeout(() => {
+        this.getOriginForApprovedContents().subscribe((res) => {
+          this.getProgramContents();
+        })
+      }, 3000);
     }
   }
   goBack() {

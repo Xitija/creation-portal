@@ -166,7 +166,8 @@ export class CreateProgramComponent implements OnInit, AfterViewInit {
       this.defaultContributeOrgReviewChecked = _.get(this.programDetails, 'config.defaultContributeOrgReview') ? false : true;
 
       // tslint:disable-next-line: max-line-length
-      this.selectedTargetCollection = !_.isEmpty(_.compact(_.get(this.programDetails, 'target_collection_category'))) ? _.get(this.programDetails, 'target_collection_category')[0] : 'Digital Textbook';
+      this.selectedTargetCollection = !_.isEmpty(_.compact(_.get(this.programDetails, 'target_collection_category'))) ? _.get(this.programDetails, 'target_collection_category')[0] : '';
+
       if (!_.isEmpty(this.programDetails.guidelines_url)) {
         this.guidLinefileName = this.programDetails.guidelines_url.split("/").pop();
       }
@@ -242,6 +243,10 @@ export class CreateProgramComponent implements OnInit, AfterViewInit {
     if (this.projectTargetType === 'collections' || this.projectTargetType === 'questionSets') {
       this.projectScopeForm.controls['target_collection_category'].setValidators(Validators.required);
      // this.programScope['target_collection_category_options'] = _.get(this.cacheService.get(this.userService.hashTagId), 'collectionPrimaryCategories');
+     if (this.selectedTargetCollection) {
+        //this.getCollectionCategoryDefinition();
+        this.onChangeTargetCollectionCategory();
+     }
     }
     this.setProjectScopeDetails();
   }
@@ -266,6 +271,8 @@ export class CreateProgramComponent implements OnInit, AfterViewInit {
                 this.initializeFrameworkForTargetType(response.identifier);
               }
           });
+        } else {
+          this.initializeFrameworkForTargetType(_.get(this.programScope['userChannelData'], 'defaultFramework'))
         }
         const channelCats = _.get(this.programScope['userChannelData'], 'primaryCategories');
         const channeltargetObjectTypeGroup = _.groupBy(channelCats, 'targetObjectType');
@@ -304,19 +311,7 @@ export class CreateProgramComponent implements OnInit, AfterViewInit {
     //this.frameworkService.initialize(frameworkName, this.userService.hashTagId);
     this.frameworkService.readFramworkCategories(frameworkName).subscribe((frameworkData) => {
       if (frameworkData) {
-        //this.projectScopeForm.controls['framework'].setValue([frameworkData.identifier]);
         this.programScope['framework'] = frameworkData;
-        //this.programScope['frameworkAttributes'] = frameworkData.categories;
-
-        // if (this.projectTargetType === 'collections') {
-        //   //this.programScope['userFramework'] = frameworkData.frameworkdata.defaultFramework.identifier;
-        //   this.projectScopeForm.controls['framework'].setValue([frameworkData.defaultFramework.identifier]);
-        //   this.programScope['frameworkAttributes'] = frameworkData.defaultFramework.categories;
-        // } else {
-        //   //this.programScope['userFramework'] = 'nit_k-12';
-        //   this.projectScopeForm.controls['framework'].setValue(frameworkName);
-        //   this.programScope['frameworkAttributes'] = frameworkData[frameworkName].categories;
-        // }
         this.setFrameworkAttributes();
       }
       this.isFormValueSet.projectScopeForm = true;
@@ -365,8 +360,7 @@ export class CreateProgramComponent implements OnInit, AfterViewInit {
         }
       }
     }
-
-    this.programScope.framework.categories?.forEach((element) => {
+    this.programScope.framework.categories.forEach((element) => {
       const sortedArray = alphaNumSort(_.reduce(element['terms'], (result, value) => {
         result.push(value);
         return result;
@@ -880,7 +874,7 @@ export class CreateProgramComponent implements OnInit, AfterViewInit {
 
   validateDates() {
     let hasError = false;
-    const formData = this.createProgramForm.value;
+    const formData = this.createProgramForm.getRawValue();
     const nominationEndDate = moment(formData.nomination_enddate);
     const contentSubmissionEndDate = moment(formData.content_submission_enddate);
     const programEndDate = moment(formData.enddate);
@@ -1206,9 +1200,9 @@ showTexbooklist(showTextBookSelector = true) {
 
     if (!_.isEmpty(this.projectScopeForm.value.medium) || (!_.isEmpty(this.projectScopeForm.value.gradeLevel)) || !_.isEmpty(this.projectScopeForm.value.subject)) {
       this.filterApplied = true;
-      requestData.request.filters['medium'] = this.projectScopeForm.value.medium || [];
-      requestData.request.filters['gradeLevel'] = this.projectScopeForm.value.gradeLevel || [];
-      requestData.request.filters['subject'] = this.projectScopeForm.value.subject || [];
+      requestData.request.filters['medium'] = _.map(this.projectScopeForm.value.medium, 'name') || [];
+      requestData.request.filters['gradeLevel'] = _.map(this.projectScopeForm.value.gradeLevel, 'name') || [];
+      requestData.request.filters['subject'] = _.map(this.projectScopeForm.value.subject, 'name') || [];
     }
     requestData.request.filters = _.pickBy(requestData.request.filters, function(v,k){return (!_.isEmpty(v))});
 

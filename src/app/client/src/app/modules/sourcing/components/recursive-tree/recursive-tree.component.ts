@@ -23,6 +23,7 @@ export class RecursiveTreeComponent implements OnInit {
   @Input() selectedStatus;
   @Input() dynamicHeaders;
   @Input() tags;
+  @Input() dynamicHeadersEnabled;
   @Output() emitSelectedNode = new EventEmitter<any>();
   @Output() nodeMeta = new EventEmitter<any>();
   public showModal = false;
@@ -68,6 +69,7 @@ export class RecursiveTreeComponent implements OnInit {
     this.telemetryInteractPdata = this.programTelemetryService.getTelemetryInteractPdata(this.userService.appId, this.configService.appConfig.TELEMETRY.PID );
     this.userId = this.userService.userid;
     this.showActionMenu = this.visibility && this.visibility['showActionMenu'];
+    this.tags = this.tags.sort().reverse();
   }
 
   hasAccessFor(roles: Array<string>) {

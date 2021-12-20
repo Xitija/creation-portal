@@ -110,12 +110,12 @@ export class HelperService {
     return this._selectedCollectionMetaData;
   }
 
-  checkIfCollectionFolder(data, target_type?) {    
+  checkIfCollectionFolder(data, target_type?) {
     if(target_type === 'questionSets') {
       // tslint:disable-next-line:max-line-length
       if (data.mimeType === 'application/vnd.sunbird.questionset' && data.visibility === 'Parent') {
         return true;
-      } 
+      }
       else {
         return false;
       }
@@ -134,7 +134,7 @@ export class HelperService {
       // tslint:disable-next-line:max-line-length
       if (data.mimeType === 'application/vnd.sunbird.questionset' && _.includes(['Default', 'Private'], data.visibility)) {
         return true;
-      } 
+      }
       else {
         return false;
       }
@@ -896,6 +896,9 @@ export class HelperService {
     if (_.includes(['gradeLevel', 'medium', 'subject'], property)) {
       ret = _.isArray(ret) ? ret : _.split(ret, ',');
     }
+    if (_.includes(['board', 'framework'], property)) {
+      ret = _.isArray(ret) ? _.first(ret) : ret;
+    }
     return ret || null;
 
     /*if (property === 'channel') {
@@ -955,7 +958,7 @@ export class HelperService {
     }));
   }
 
-  getDynamicHeaders(configUrl){
+  getDynamicHeaders(configUrl) {
     const req = {
       url: `${configUrl}schemas/collection/1.0/config.json`,
     };
@@ -1206,7 +1209,7 @@ export class HelperService {
 
   getFormattedFrameworkMetaWithOutCollection(row, sessionContext) {
     const organisationFrameworkUserInput = _.pick(row, _.map(this.frameworkService.orgFrameworkCategories, 'orgIdFieldName'));
-    const framework = _.first(_.get(sessionContext, 'framework'));
+    const framework = (_.isArray(_.get(sessionContext, 'framework'))) ? _.first(_.get(sessionContext, 'framework')) : _.get(sessionContext, 'framework');
     this.flattenedFrameworkCategories[framework] = {};
     // tslint:disable-next-line:max-line-length
     const orgFrameworkCategories = _.get(this.frameworkService.frameworkData[framework], 'categories');
@@ -1433,7 +1436,7 @@ export class HelperService {
     }
     if (_.get(templateDetails, 'modeOfCreation') === 'question') {
       obj['questionCategories'] =  [templateDetails.questionCategory];
-      if(_.get(templateDetails, 'mimeType[0]') === 'application/vnd.sunbird.question') {        
+      if(_.get(templateDetails, 'mimeType[0]') === 'application/vnd.sunbird.question') {
         delete obj.programId;
         delete obj.creator;
         delete obj.organisationId;
@@ -1443,7 +1446,7 @@ export class HelperService {
 
         obj.interactionTypes = _.get(templateDetails, 'interactionTypes');
       }
-    }   
+    }
     const option = {
       url: 'content/v3/create',
       header: {
@@ -1457,9 +1460,9 @@ export class HelperService {
       option.data.request['questionset'] = {};
       option.data.request['questionset'] = obj;
     } else if(_.get(templateDetails, 'mimeType[0]') === 'application/vnd.sunbird.question') {
-      option.url = 'question/v1/create';      
+      option.url = 'question/v1/create';
       option.data.request['question'] = {};
-      option.data.request['question'] = obj;      
+      option.data.request['question'] = obj;
     }
     else {
       option.data.request['content'] = {};

@@ -38,6 +38,9 @@ export class QuestionSetEditorComponent implements OnInit, OnDestroy {
   public telemetryPageId: string;
   private onComponentDestroy$ = new Subject<any>();
   public hideSubmitForReviewBtn = false;
+  public sunbirdQuestionSetChildrenLimit: any;
+  public sunbirdCollectionChildrenLimit: any;
+  public publicStorageAccount: any;
   public enableQuestionCreation = true;
   public setDefaultCopyright = false;
   public isQuestionMode = false;
@@ -55,6 +58,12 @@ export class QuestionSetEditorComponent implements OnInit, OnDestroy {
       this.deviceId = deviceId ? deviceId.value : '';
       this.buildNumber = buildNumber ? buildNumber.value : '1.0';
       this.portalVersion = buildNumber && buildNumber.value ? buildNumber.value.slice(0, buildNumber.value.lastIndexOf('.')) : '1.0';
+      this.sunbirdQuestionSetChildrenLimit = (<HTMLInputElement>document.getElementById('sunbirdQuestionSetChildrenLimit')) ?
+      (<HTMLInputElement>document.getElementById('sunbirdQuestionSetChildrenLimit')).value : 500;
+      this.sunbirdCollectionChildrenLimit = (<HTMLInputElement>document.getElementById('sunbirdCollectionChildrenLimit')) ?
+      (<HTMLInputElement>document.getElementById('sunbirdCollectionChildrenLimit')).value : 1200;
+      this.publicStorageAccount = (<HTMLInputElement>document.getElementById('portalCloudStorageUrl')) ?
+      (<HTMLInputElement>document.getElementById('portalCloudStorageUrl')).value : 'https://dockstorage.blob.core.windows.net/';
      }
 
   ngOnInit() {
@@ -120,6 +129,8 @@ export class QuestionSetEditorComponent implements OnInit, OnDestroy {
         sid: this.userService.sessionId,
         did: this.deviceId,
         uid: this.userService.userid,
+        programId: this.programContext.program_id,
+        contributionOrgId: _.get(this.sessionContext, 'nominationDetails.organisation_id', '') ,
         pdata: {
           id: this.userService.appId,
           ver: this.portalVersion,
@@ -163,8 +174,16 @@ export class QuestionSetEditorComponent implements OnInit, OnDestroy {
         showOriginPreviewUrl: false,
         showSourcingStatus: false,
         showCorrectionComments: false,
-        enableQuestionCreation: this.enableQuestionCreation,
-        hideSubmitForReviewBtn: this.hideSubmitForReviewBtn
+        enableBulkUpload: false,
+        publicStorageAccount: this.publicStorageAccount,
+        hideSubmitForReviewBtn: this.hideSubmitForReviewBtn,
+        questionSet: {
+          maxQuestionsLimit: this.sunbirdQuestionSetChildrenLimit
+        },
+        collection: {
+          maxContentsLimit: this.sunbirdCollectionChildrenLimit
+        },
+        enableQuestionCreation: this.enableQuestionCreation
       }
     };
     if (this.showQuestionEditor || this.enableQuestionCreation) {
@@ -205,6 +224,7 @@ export class QuestionSetEditorComponent implements OnInit, OnDestroy {
     this.editorConfig.config.mimeType = _.get(this.sessionContext, 'templateDetails.mimeType[0]');
     this.editorConfig.config.primaryCategory = _.get(this.sessionContext, 'templateDetails.name');
     this.editorConfig.config.interactionType = _.get(this.sessionContext, 'templateDetails.interactionTypes[0]');
+    this.editorConfig.config.questionCategory = _.get(this.sessionContext, 'templateDetails.questionCategory');
     this.editorConfig.config.objectType = 'Question';
     this.editorConfig.config.mode = 'edit';
     this.editorConfig.config.isReadOnlyMode = false;

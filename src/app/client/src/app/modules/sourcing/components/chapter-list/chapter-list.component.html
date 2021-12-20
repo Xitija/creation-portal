@@ -109,7 +109,7 @@
                 <dt>{{countData['mycontribution']}}</dt>
                 <dd>My Content</dd>
               </dl>
-              <dl *ngIf="sessionContext['addFromLibraryBetaEnabled']" class="sb-meta-data">
+              <dl *ngIf="sessionContext['addFromLibraryEnabled']" class="sb-meta-data">
                 <dt>{{reusedContributions.length}}</dt>
                 <dd>Added From Library</dd>
               </dl>
@@ -209,14 +209,14 @@
                 ></app-bulk-upload>
                 <div class="d-flex flex-dc">
                   <button type="button" class="sb-btn sb-btn-normal sb-btn-primary text-inherit ml-10" style="margin-bottom: 0.75rem" (click)="viewBlueprint()" *ngIf="localBlueprint">{{resourceService?.frmelmnts?.lbl?.viewBlueprint}}</button>
-                  <button type="button" class="sb-btn sb-btn-normal sb-btn-outline-info text-inherit ml-10" (click)="printPreview()" *ngIf="displayPrintPreview && sourcingOrgReviewer">{{resourceService?.frmelmnts?.btn?.printPreview}}</button>
+                  <a class="sb-btn sb-btn-normal sb-btn-outline-info text-inherit ml-10" [href]="printUrl + '?id=' + collectionData.identifier + '&format=docx'" target="_blank" *ngIf="displayPrintPreview && sourcingOrgReviewer">{{resourceService?.frmelmnts?.btn?.printPreview}}</a>
                   <button type="button" class="sb-btn sb-btn-normal sb-btn-primary text-inherit ml-10" (click)="showPublishConfirmationModal = true;" *ngIf="projectTargetType === 'questionSets' && sourcingOrgReviewer">{{resourceService?.frmelmnts?.btn?.publishQuestionset}}</button>
                 </div>
               </div>
           </div>
           <div class="sb-chapterlist">
             <sui-accordion class="styled fluid sb-accordion sb-chapterlist-accordion" [closeOthers]="true">
-              <app-recursive-tree [collectionUnits]="collectionHierarchy" [level]="1" [programContext]="programContext" [sessionContext]="sessionContext" [selectedChapter]="selectedChapterOption" [originalCollectionData]="originalCollectionData" [reusedContributions]="reusedContributions" [tags]="tags" [dynamicHeaders]="dynamicHeaders"
+              <app-recursive-tree [collectionUnits]="collectionHierarchy" [level]="1" [programContext]="programContext" [sessionContext]="sessionContext" [selectedChapter]="selectedChapterOption" [originalCollectionData]="originalCollectionData" [reusedContributions]="reusedContributions" [tags]="tags" [dynamicHeaders]="dynamicHeaders" [dynamicHeadersEnabled]="dynamicHeadersEnabled"
               [selectedStatus]="selectedStatusOptions" (nodeMeta)="showResourceTemplate($event)"></app-recursive-tree>
             </sui-accordion>
           </div>

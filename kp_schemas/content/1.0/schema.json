@@ -185,7 +185,9 @@
                     "Student",
                     "Teacher",
                     "Parent",
-                    "Administrator"
+                    "Administrator",
+                    "Others",
+                    "Other"
                 ]
             },
             "default": ["Student"]
@@ -1327,6 +1329,12 @@
         "type": "array",
         "items": {
           "type": "string"
+        }
+      },
+      "transcripts": {
+        "type": "array",
+        "items": {
+            "type": "object"
         }
       }
     }

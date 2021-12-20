@@ -36,9 +36,10 @@ import { CollectionEditorLibraryModule, EditorCursor } from '@samagra-x/sunbird-
 import { CarouselModule } from 'ngx-bootstrap/carousel';
 import { QumlPlayerService } from './services/quml-player/quml-player.service';
 import { QumlLibraryModule, QuestionCursor } from '@project-sunbird/sunbird-quml-player-v9';
-import { ResourceLibraryModule } from "@samagra-x/sunbird-resource-library";
+import { ResourceLibraryModule } from "@project-sunbird/sunbird-resource-library";
 import { SunbirdVideoPlayerModule } from '@project-sunbird/sunbird-video-player-v9';
-
+import { TranscriptsComponent } from './components/transcripts/transcripts.component';
+import { TranscriptsReviewComponent } from './components/transcripts-review/transcripts-review.component';
 
 @NgModule({
   declarations: [QuestionListComponent, QuestionCreationComponent,
@@ -48,7 +49,7 @@ import { SunbirdVideoPlayerModule } from '@project-sunbird/sunbird-video-player-
     ContentUploaderComponent, CollectionComponent,
     ResourceReorderComponent, ContentEditorComponent, MvcLibraryComponent,
     MvcListComponent, MvcFilterComponent, MvcPlayerComponent, SkeletonLoaderComponent,
-    BulkApprovalComponent, BulkUploadComponent, QuestionSetEditorComponent],
+    BulkApprovalComponent, BulkUploadComponent, QuestionSetEditorComponent, TranscriptsComponent, TranscriptsReviewComponent],
   imports: [
     RouterModule,
     CoreModule,
@@ -77,7 +78,7 @@ import { SunbirdVideoPlayerModule } from '@project-sunbird/sunbird-video-player-
   providers: [
     { provide: QuestionCursor, useExisting: QumlPlayerService },
     { provide: EditorCursor, useExisting: QumlPlayerService },
-    CollectionHierarchyService],  
-  exports: [ BulkUploadComponent, BulkApprovalComponent, SanitizeHtmlPipe, QuestionSetEditorComponent ]
+    CollectionHierarchyService],
+  exports: [ BulkUploadComponent, BulkApprovalComponent, SanitizeHtmlPipe, TranscriptsComponent, TranscriptsReviewComponent, QuestionSetEditorComponent  ]
 })
 export class SourcingModule { }
